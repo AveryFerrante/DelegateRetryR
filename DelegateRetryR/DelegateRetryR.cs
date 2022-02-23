@@ -80,6 +80,7 @@ namespace DelegateRetry
             }
         }
 
+        // TODO: REMOVE DEPENDENCY ON TRESULT SO DONT HAVE TO USE OBJECT PLACEHOLDER VALUE
         private async Task<TResult> PerformRetry<TException, TResult>(Delegate action, object[]? parameters, Func<Delegate, object[], int, Task<TResult>> WorkRunner, Predicate<int>? retryConditional = null, Func<int, int>? retryDelay = null) where TException : Exception
         {
             TException fault;
@@ -129,6 +130,7 @@ namespace DelegateRetry
         private async Task<TResult> RunAsyncWorkAsTask<TResult>(Delegate action, object[] parameters, int waitDurationInMs)
         {
             var result = await WaitAndPerformWork(action, parameters, waitDurationInMs);
+            // TODO: CANNOT RELY ON PASSING OBJECT TYPE FOR NON-RETURN VALUE 
             if (typeof(TResult) != typeof(object))
             {
                 return await TryConvertToResult<Task<TResult>>(result);
