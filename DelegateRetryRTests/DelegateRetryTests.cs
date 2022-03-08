@@ -1,5 +1,6 @@
 using DelegateRetry;
 using DelegateRetry.Exceptions;
+using DelegateRetryR.Exceptions;
 using System;
 using System.Diagnostics;
 using System.Threading;
@@ -51,7 +52,7 @@ namespace DelegateRetry.Tests
         }
 
         [Fact]
-        public async void ensure_return_type_mismatch_error_is_thrown_if_actual_return_type_differs_from_expected()
+        public async void ensure_invalid_return_type_error_is_thrown_if_actual_return_type_differs_from_expected()
         {
             var functionToTest = FailingDelegateBuilder
                 .WillThrow(new InvalidCastException())
@@ -60,7 +61,7 @@ namespace DelegateRetry.Tests
                 .Build();
             IDelegateRetryR RetryHelper = new DelegateRetryR();
 
-            await Assert.ThrowsAsync<ReturnTypeMismatchException>(() => RetryHelper.RetryWorkAsync<InvalidCastException, string>(functionToTest, null));
+            await Assert.ThrowsAsync<InvalidReturnTypeException>(() => RetryHelper.RetryWorkAsync<InvalidCastException, string>(functionToTest, null));
         }
 
         [Fact]
@@ -84,7 +85,7 @@ namespace DelegateRetry.Tests
                 .WillThrow(new ArgumentNullException())
                 .WithFailureCount(2)
                 .PerformsWork(() => returnValue)
-                .Build();
+                .BuildWithReturnType<int>();
             IDelegateRetryR RetryHelper = new DelegateRetryR();
 
             var result = await RetryHelper.RetryWorkAsync<ArgumentNullException, int>(functionToTest, null, (int retryCount) => retryCount < 3);
@@ -98,7 +99,7 @@ namespace DelegateRetry.Tests
                 .WillThrow(new ArgumentNullException())
                 .WithFailureCount(2)
                 .PerformsWork((string a) => a + "123")
-                .BuildWithExpectedParams<string>();
+                .BuildWithExpectedParamsAndReturnType<string, string>();
             IDelegateRetryR RetryHelper = new DelegateRetryR();
 
             var result = await RetryHelper.RetryWorkAsync<ArgumentNullException, string>(functionToTest, new object[] { "abc" }, (int retryCount) => retryCount < 3);
@@ -113,7 +114,7 @@ namespace DelegateRetry.Tests
                 .WillThrow(new ArgumentNullException())
                 .WithFailureCount(2)
                 .PerformsWork((string a, int b) => $"{a}{b}123")
-                .BuildWithExpectedParams<string, int>();
+                .BuildWithExpectedParamsAndReturnType<string, int, string>();
             IDelegateRetryR RetryHelper = new DelegateRetryR();
 
             var result = await RetryHelper.RetryWorkAsync<ArgumentNullException, string>(functionToTest, new object[] { "abc", 15 }, (int retryCount) => retryCount < 3);
@@ -127,7 +128,7 @@ namespace DelegateRetry.Tests
                 .WillThrow(new ArgumentNullException())
                 .WithFailureCount(6)
                 .PerformsWork((string a) => $"{a}123")
-                .BuildWithExpectedParams<string>();
+                .BuildWithExpectedParamsAndReturnType<string, string>();
             IDelegateRetryR RetryHelper = new DelegateRetryR(new DelegateRetryRConfiguration() { RetryConditional = (int retryCount) => retryCount < 7 });
 
             var result = await RetryHelper.RetryWorkAsync<ArgumentNullException, string>(functionToTest, new object[] { "abc" });
@@ -141,7 +142,7 @@ namespace DelegateRetry.Tests
                 .WillThrow(new ArgumentNullException())
                 .WithFailureCount(4)
                 .PerformsWork((string a) => a + "123")
-                .BuildWithExpectedParams<string>();
+                .BuildWithExpectedParamsAndReturnType<string, string>();
             IDelegateRetryR RetryHelper = new DelegateRetryR(new DelegateRetryRConfiguration() { RetryDelay = (int retryCount) => retryCount * 1000 });
 
             var watch = new Stopwatch();
@@ -189,11 +190,53 @@ namespace DelegateRetry.Tests
                 .WillThrow(new AggregateException())
                 .WithFailureCount(3)
                 .PerformsWork(() => 10)
-                .Build();
+                .BuildWithReturnType<int>();
             IDelegateRetryR RetryHelper = new DelegateRetryR(new DelegateRetryRConfiguration() { RetryConditional = (int retryCount) => retryCount < 5 });
 
             var result = await RetryHelper.RetryWorkAsync<Exception, int>(functionToTest, parameters: null);
             Assert.Equal(10, result);
+        }
+
+        [Fact]
+        public async void ensure_parameter_count_mismatch_exception_is_thrown_if_counts_do_not_match()
+        {
+            var functionToTest = FailingDelegateBuilder
+                .WillThrow(new InvalidCastException())
+                .WithFailureCount(0)
+                .PerformsWork((string a) => a)
+                .BuildWithExpectedParamsAndReturnType<string, string>();
+            IDelegateRetryR RetryHelper = new DelegateRetryR();
+
+            await Assert.ThrowsAsync<ProvidedParameterCountMismatchException>(() =>
+                RetryHelper.RetryWorkAsync<InvalidCastException>(functionToTest, new object[] { "abc", 1234 }));
+        }
+
+        [Fact]
+        public async void ensure_invalid_parameter_type_exception_is_thrown_if_types_do_not_match()
+        {
+            var functionToTest = FailingDelegateBuilder
+                .WillThrow(new InvalidCastException())
+                .WithFailureCount(0)
+                .PerformsWork((string a, string b) => a + b)
+                .BuildWithExpectedParams<string, string>();
+            IDelegateRetryR RetryHelper = new DelegateRetryR();
+
+            await Assert.ThrowsAsync<InvalidProvidedParameterTypeException>(() =>
+                RetryHelper.RetryWorkAsync<InvalidCastException>(functionToTest, new object[] { "abc", 1234 }));
+        }
+
+        [Fact]
+        public async void ensure_subclasses_are_allowed_parameter_types()
+        {
+            var functionToTest = FailingDelegateBuilder
+                .WillThrow(new ArgumentNullException())
+                .WithFailureCount(2)
+                .PerformsWork((object generalizedParam) => 50)
+                .BuildWithExpectedParamsAndReturnType<object, int>();
+            IDelegateRetryR RetryHelper = new DelegateRetryR();
+
+            var result = await RetryHelper.RetryWorkAsync<ArgumentNullException, int>(functionToTest, new object[] { "abc" });
+            Assert.Equal(50, result);
         }
     }
 }
