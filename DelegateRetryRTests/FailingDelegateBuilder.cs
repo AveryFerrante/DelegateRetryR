@@ -61,23 +61,45 @@ namespace DelegateRetry.Tests
 
         }
 
+        public Delegate BuildWithReturnType<TReturnType>()
+        {
+            EnsureReturnType<TReturnType>();
+            Func<TReturnType> returnWork = () =>
+            {
+                ProcessForcedFailures();
+                return (TReturnType)work.DynamicInvoke();
+            };
+            return returnWork;
+        }
+
         public Delegate BuildWithExpectedParamsAndReturnType<TParamType, TReturnType>()
         {
-            if (work == null)
-            {
-                throw new ArgumentNullException("Cannot build delegate with a return type if the lambda is null. Please provide a valid lambda via the 'PerformsWork' function");
-            }
-
-            if (work.Method.ReturnType != typeof(TReturnType))
-            {
-                throw new ArgumentException($"Provided return type of {typeof(TReturnType)} doesn't match the actual return type {work.Method.ReturnType.Name}");
-            }
+            EnsureReturnType<TReturnType>();
             Func<TParamType, TReturnType> returnWork = (TParamType a) =>
             {
                 ProcessForcedFailures();
                 return (TReturnType)work.DynamicInvoke(a);
             };
             return returnWork;
+        }
+
+        public Delegate BuildWithExpectedParamsAndReturnType<TParamType1, TParamType2, TReturnType>()
+        {
+            EnsureReturnType<TReturnType>();
+            Func<TParamType1, TParamType2, TReturnType> returnWork = (TParamType1 a, TParamType2 b) =>
+            {
+                ProcessForcedFailures();
+                return (TReturnType)work.DynamicInvoke(a, b);
+            };
+            return returnWork;
+        }
+
+        private void EnsureReturnType<TReturnType>()
+        {
+            if (work.Method.ReturnType != typeof(TReturnType))
+            {
+                throw new ArgumentException($"Provided return type of {typeof(TReturnType)} doesn't match the actual return type {work.Method.ReturnType.Name}");
+            }
         }
 
         private void ProcessForcedFailures()
@@ -106,6 +128,8 @@ namespace DelegateRetry.Tests
         Delegate Build();
         Delegate BuildWithExpectedParams<TParamType>();
         Delegate BuildWithExpectedParams<TParamType1, TParamType2>();
+        Delegate BuildWithReturnType<TReturnType>();
         Delegate BuildWithExpectedParamsAndReturnType<TParamType1, TReturnType>();
+        Delegate BuildWithExpectedParamsAndReturnType<TParamType1, TParamType2, TReturnType>();
     }
 }

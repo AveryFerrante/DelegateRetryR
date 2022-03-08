@@ -27,8 +27,8 @@ namespace DelegateRetry.FluentApi
         }
         public IThrowsExceptionStep WithParameters(object param1, params object[] restOfParams)
         {
-            restOfParams = restOfParams.Prepend(param1).ToArray();
-            Parameters = restOfParams;
+            var parameters = restOfParams.Prepend(param1).ToArray();
+            Parameters = parameters;
             return this;
         }
 
@@ -64,6 +64,12 @@ namespace DelegateRetry.FluentApi
             return this;
         }
 
+        public IDefineReturnTypeStep UsingDefaultConfiguration()
+        {
+            Configuration = null;
+            return this;
+        }
+
         public IExecuteWithReturnStep<TReturn> WillReturn<TReturn>()
         {
             return WorkRetryRWithReturn<TReturn, TException>.Init<TReturn, TException>(WorkRetryR, Configuration);
@@ -74,7 +80,7 @@ namespace DelegateRetry.FluentApi
             return this;
         }
 
-        public virtual Task Execute()
+        public Task Execute()
         {
             var retryR = new DelegateRetryR();
             if (WorkRetryR.IsAsync)
@@ -102,21 +108,11 @@ namespace DelegateRetry.FluentApi
             var retryR = new DelegateRetryR();
             if (WorkRetryR.IsAsync)
             {
-                EnsureReturnTypeOfWorkMatches(typeof(Task<TReturn>));
                 return retryR.RetryAsyncWorkAsync<TException, TReturn>(WorkRetryR.Work, WorkRetryR.Parameters, Configuration?.RetryConditional, Configuration?.RetryDelay);
             }
             else
             {
-                EnsureReturnTypeOfWorkMatches(typeof(TReturn));
                 return retryR.RetryWorkAsync<TException, TReturn>(WorkRetryR.Work, WorkRetryR.Parameters, Configuration?.RetryConditional, Configuration?.RetryDelay);
-            }
-        }
-
-        private void EnsureReturnTypeOfWorkMatches(Type expectedReturnType)
-        {
-            if (WorkRetryR.Work.Method.ReturnType != expectedReturnType)
-            {
-                throw new InvalidReturnTypeException(WorkRetryR.Work.Method.ReturnType, expectedReturnType);
             }
         }
     }
@@ -135,6 +131,7 @@ namespace DelegateRetry.FluentApi
     public interface IConfigurationStep
     {
         IDefineReturnTypeStep UsingConfiguration(DelegateRetryRConfiguration config);
+        IDefineReturnTypeStep UsingDefaultConfiguration();
     }
 
     public interface IDefineReturnTypeStep
