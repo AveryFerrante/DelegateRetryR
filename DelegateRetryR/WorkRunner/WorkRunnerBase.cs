@@ -1,12 +1,8 @@
 ﻿using DelegateRetry.Exceptions;
-using DelegateRetryR.Exceptions;
 using System;
-using System.Collections.Generic;
-using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
 
-namespace DelegateRetryR.WorkRunner
+namespace DelegateRetry.WorkRunner
 {
     public abstract class WorkRunnerBase
     {

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DelegateRetryR.WorkRunner
+namespace DelegateRetry.WorkRunner
 {
     public class WorkRunnerWithReturn<TResult> : WorkRunnerBase
     {

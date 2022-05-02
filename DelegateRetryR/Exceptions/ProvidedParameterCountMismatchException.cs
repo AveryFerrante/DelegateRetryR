@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace DelegateRetryR.Exceptions
+namespace DelegateRetry.Exceptions
 {
     public class ProvidedParameterCountMismatchException : Exception
     {

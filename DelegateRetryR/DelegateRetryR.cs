@@ -1,9 +1,7 @@
-﻿using DelegateRetry.Exceptions;
-using DelegateRetryR.WorkRunner;
+﻿using DelegateRetry.WorkRunner;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace DelegateRetry

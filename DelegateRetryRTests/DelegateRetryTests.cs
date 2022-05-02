@@ -1,6 +1,5 @@
-using DelegateRetry;
 using DelegateRetry.Exceptions;
-using DelegateRetryR.Exceptions;
+using DelegateRetry.WorkRunner;
 using System;
 using System.Diagnostics;
 using System.Threading;
@@ -231,11 +230,12 @@ namespace DelegateRetry.Tests
             var functionToTest = FailingDelegateBuilder
                 .WillThrow(new ArgumentNullException())
                 .WithFailureCount(2)
-                .PerformsWork((object generalizedParam) => 50)
-                .BuildWithExpectedParamsAndReturnType<object, int>();
+                .PerformsWork((WorkRunnerBase generalizedParam) => 50)
+                .BuildWithExpectedParamsAndReturnType<WorkRunnerBase, int>();
             IDelegateRetryR RetryHelper = new DelegateRetryR();
 
-            var result = await RetryHelper.RetryWorkAsync<ArgumentNullException, int>(functionToTest, new object[] { "abc" });
+            var specificParam = new WorkRunnerWithoutReturn(() => { }, null, false);
+            var result = await RetryHelper.RetryWorkAsync<ArgumentNullException, int>(functionToTest, new object[] { specificParam });
             Assert.Equal(50, result);
         }
     }

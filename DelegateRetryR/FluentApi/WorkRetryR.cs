@@ -1,7 +1,7 @@
-﻿using DelegateRetry.Exceptions;
+﻿using Microsoft.Extensions.Logging;
 using System;
-using System.Threading.Tasks;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace DelegateRetry.FluentApi
 {
@@ -47,6 +47,7 @@ namespace DelegateRetry.FluentApi
     public class WorkRetryRWithException<TException> : IConfigurationStep, IDefineReturnTypeStep, IExecuteNoReturnStep where TException : Exception
     {
         protected DelegateRetryRConfiguration? Configuration { get; set; }
+        public ILogger? Logger { get; set; }
         protected WorkRetryR WorkRetryR { get; set; }
         protected WorkRetryRWithException(WorkRetryR workRetryR, DelegateRetryRConfiguration? config = null)
         {
@@ -58,15 +59,17 @@ namespace DelegateRetry.FluentApi
             return new WorkRetryRWithException<T>(workRetryR);
         }
 
-        public IDefineReturnTypeStep UsingConfiguration(DelegateRetryRConfiguration config)
+        public IDefineReturnTypeStep UsingConfiguration(DelegateRetryRConfiguration config, ILogger? logger = null)
         {
             Configuration = config;
+            Logger = logger;
             return this;
         }
 
         public IDefineReturnTypeStep UsingDefaultConfiguration()
         {
             Configuration = null;
+            Logger = null;
             return this;
         }
 
@@ -82,14 +85,26 @@ namespace DelegateRetry.FluentApi
 
         public Task Execute()
         {
-            var retryR = new DelegateRetryR();
+            var retryR = InstantiateRetryR();
             if (WorkRetryR.IsAsync)
             {
-                return retryR.RetryAsyncWorkAsync<TException>(WorkRetryR.Work, WorkRetryR.Parameters, Configuration?.RetryConditional, Configuration?.RetryDelay);
+                return retryR.RetryAsyncWorkAsync<TException>(WorkRetryR.Work, WorkRetryR.Parameters);
             }
             else
             {
-                return retryR.RetryWorkAsync<TException>(WorkRetryR.Work, WorkRetryR.Parameters, Configuration?.RetryConditional, Configuration?.RetryDelay);
+                return retryR.RetryWorkAsync<TException>(WorkRetryR.Work, WorkRetryR.Parameters);
+            }
+        }
+
+        protected DelegateRetryR InstantiateRetryR()
+        {
+            if (Logger != null)
+            {
+                return new DelegateRetryR(Configuration ?? new DelegateRetryRConfiguration(), Logger);
+            }
+            else
+            {
+                return new DelegateRetryR(Configuration ?? new DelegateRetryRConfiguration());
             }
         }
     }
@@ -105,14 +120,14 @@ namespace DelegateRetry.FluentApi
 
         public new Task<TReturn> Execute()
         {
-            var retryR = new DelegateRetryR();
+            var retryR = InstantiateRetryR();
             if (WorkRetryR.IsAsync)
             {
-                return retryR.RetryAsyncWorkAsync<TException, TReturn>(WorkRetryR.Work, WorkRetryR.Parameters, Configuration?.RetryConditional, Configuration?.RetryDelay);
+                return retryR.RetryAsyncWorkAsync<TException, TReturn>(WorkRetryR.Work, WorkRetryR.Parameters);
             }
             else
             {
-                return retryR.RetryWorkAsync<TException, TReturn>(WorkRetryR.Work, WorkRetryR.Parameters, Configuration?.RetryConditional, Configuration?.RetryDelay);
+                return retryR.RetryWorkAsync<TException, TReturn>(WorkRetryR.Work, WorkRetryR.Parameters);
             }
         }
     }
@@ -130,7 +145,7 @@ namespace DelegateRetry.FluentApi
 
     public interface IConfigurationStep
     {
-        IDefineReturnTypeStep UsingConfiguration(DelegateRetryRConfiguration config);
+        IDefineReturnTypeStep UsingConfiguration(DelegateRetryRConfiguration config, ILogger? logger = null);
         IDefineReturnTypeStep UsingDefaultConfiguration();
     }
 

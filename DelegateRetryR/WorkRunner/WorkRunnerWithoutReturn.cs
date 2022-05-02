@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 
-namespace DelegateRetryR.WorkRunner
+namespace DelegateRetry.WorkRunner
 {
     public class WorkRunnerWithoutReturn : WorkRunnerBase
     {
