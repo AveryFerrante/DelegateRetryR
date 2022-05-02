@@ -1,28 +1,38 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using DelegateRetry;
 using DelegateRetry.FluentApi;
+using DelegateRetry.LogAdapter.Serilog;
+using Serilog.Events;
+using Serilog;
 
 Delegate apiCall = async (string uri) =>
 {
     using (var client = new HttpClient())
     {
         var response = await client.GetAsync(uri);
+        throw new Exception();
         return await response.Content.ReadAsStringAsync();
     }
 };
 
-var response = await WorkRetryR
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Error()
+    .MinimumLevel.Override("DelegateRetry", LogEventLevel.Debug)
+    .Enrich.WithThreadId()
+    .WriteTo.Console(outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj} ThreadId:{ThreadId}{NewLine}{Exception}")
+    .CreateLogger();
+DelegateRetryR.UseLogger<SerilogAdapter>();
+
+var result = await WorkRetryR
     .WillExecuteAsyncWork(apiCall)
-    .WithParameters("https://www.google.com/")
+    .WithParameters("https://www.google.com")
     .AndRetryOn<Exception>()
-    .UsingConfiguration(new DelegateRetryRConfiguration())
+    .UsingDefaultConfiguration()
     .WillReturn<string>()
     .Execute();
-Console.WriteLine(response);
 
-var retryR = DelegateRetryR.Configure(config => { config.RetryConditional = (int attempt) => attempt < 4; });
-var result = await retryR.RetryAsyncWorkAsync<Exception, string>(apiCall, new object[] { "https://www.google.com" });
 Console.WriteLine(result);
+
 
 
 

@@ -20,7 +20,7 @@ namespace DelegateRetry.Tests
                 .Build();
             IDelegateRetryR RetryHelper = new DelegateRetryR();
 
-            var exception = await Record.ExceptionAsync(() => RetryHelper.RetryWorkAsync<ArgumentNullException>(functionToTest, null, (int retryCount) => retryCount < 3));
+            var exception = await Record.ExceptionAsync(() => RetryHelper.RetryWorkAsync<ArgumentNullException>(functionToTest, null, (int retryCount) => retryCount <= 3));
             Assert.Null(exception);
         }
 
@@ -87,7 +87,7 @@ namespace DelegateRetry.Tests
                 .BuildWithReturnType<int>();
             IDelegateRetryR RetryHelper = new DelegateRetryR();
 
-            var result = await RetryHelper.RetryWorkAsync<ArgumentNullException, int>(functionToTest, null, (int retryCount) => retryCount < 3);
+            var result = await RetryHelper.RetryWorkAsync<ArgumentNullException, int>(functionToTest, null, (int retryCount) => retryCount <= 3);
             Assert.Equal(returnValue, result);
         }
 
@@ -101,7 +101,7 @@ namespace DelegateRetry.Tests
                 .BuildWithExpectedParamsAndReturnType<string, string>();
             IDelegateRetryR RetryHelper = new DelegateRetryR();
 
-            var result = await RetryHelper.RetryWorkAsync<ArgumentNullException, string>(functionToTest, new object[] { "abc" }, (int retryCount) => retryCount < 3);
+            var result = await RetryHelper.RetryWorkAsync<ArgumentNullException, string>(functionToTest, new object[] { "abc" }, (int retryCount) => retryCount <= 3);
             var expected = "abc123";
             Assert.Equal(expected, result);
         }
@@ -116,7 +116,7 @@ namespace DelegateRetry.Tests
                 .BuildWithExpectedParamsAndReturnType<string, int, string>();
             IDelegateRetryR RetryHelper = new DelegateRetryR();
 
-            var result = await RetryHelper.RetryWorkAsync<ArgumentNullException, string>(functionToTest, new object[] { "abc", 15 }, (int retryCount) => retryCount < 3);
+            var result = await RetryHelper.RetryWorkAsync<ArgumentNullException, string>(functionToTest, new object[] { "abc", 15 }, (int retryCount) => retryCount <= 3);
             Assert.Equal("abc15123", result);
         }
 
@@ -128,7 +128,7 @@ namespace DelegateRetry.Tests
                 .WithFailureCount(6)
                 .PerformsWork((string a) => $"{a}123")
                 .BuildWithExpectedParamsAndReturnType<string, string>();
-            IDelegateRetryR RetryHelper = new DelegateRetryR(new DelegateRetryRConfiguration() { RetryConditional = (int retryCount) => retryCount < 7 });
+            IDelegateRetryR RetryHelper = new DelegateRetryR(new DelegateRetryRConfiguration() { RetryConditional = (int retryCount) => retryCount <= 7 });
 
             var result = await RetryHelper.RetryWorkAsync<ArgumentNullException, string>(functionToTest, new object[] { "abc" });
             Assert.Equal("abc123", result);
@@ -146,7 +146,7 @@ namespace DelegateRetry.Tests
 
             var watch = new Stopwatch();
             watch.Start();
-            var result = await RetryHelper.RetryWorkAsync<ArgumentNullException, string>(functionToTest, new object[] { "abc" }, (int retryCount) => retryCount < 5);
+            var result = await RetryHelper.RetryWorkAsync<ArgumentNullException, string>(functionToTest, new object[] { "abc" }, (int retryCount) => retryCount <= 5);
             watch.Stop();
 
             var expectedMinimumInMs = 0 + 2000 + 3000 + 4000 + 5000;
