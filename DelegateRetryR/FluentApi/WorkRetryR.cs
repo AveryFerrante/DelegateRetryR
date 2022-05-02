@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -47,7 +46,6 @@ namespace DelegateRetry.FluentApi
     public class WorkRetryRWithException<TException> : IConfigurationStep, IDefineReturnTypeStep, IExecuteNoReturnStep where TException : Exception
     {
         protected DelegateRetryRConfiguration? Configuration { get; set; }
-        public ILogger? Logger { get; set; }
         protected WorkRetryR WorkRetryR { get; set; }
         protected WorkRetryRWithException(WorkRetryR workRetryR, DelegateRetryRConfiguration? config = null)
         {
@@ -59,17 +57,15 @@ namespace DelegateRetry.FluentApi
             return new WorkRetryRWithException<T>(workRetryR);
         }
 
-        public IDefineReturnTypeStep UsingConfiguration(DelegateRetryRConfiguration config, ILogger? logger = null)
+        public IDefineReturnTypeStep UsingConfiguration(DelegateRetryRConfiguration config)
         {
             Configuration = config;
-            Logger = logger;
             return this;
         }
 
         public IDefineReturnTypeStep UsingDefaultConfiguration()
         {
             Configuration = null;
-            Logger = null;
             return this;
         }
 
@@ -98,14 +94,7 @@ namespace DelegateRetry.FluentApi
 
         protected DelegateRetryR InstantiateRetryR()
         {
-            if (Logger != null)
-            {
-                return new DelegateRetryR(Configuration ?? new DelegateRetryRConfiguration(), Logger);
-            }
-            else
-            {
-                return new DelegateRetryR(Configuration ?? new DelegateRetryRConfiguration());
-            }
+            return Configuration == null ? new DelegateRetryR() : new DelegateRetryR(Configuration);
         }
     }
 
@@ -145,7 +134,7 @@ namespace DelegateRetry.FluentApi
 
     public interface IConfigurationStep
     {
-        IDefineReturnTypeStep UsingConfiguration(DelegateRetryRConfiguration config, ILogger? logger = null);
+        IDefineReturnTypeStep UsingConfiguration(DelegateRetryRConfiguration config);
         IDefineReturnTypeStep UsingDefaultConfiguration();
     }
 

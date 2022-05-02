@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DelegateRetryR", "DelegateR
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DelegateRetryRTests", "DelegateRetryRTests\DelegateRetryRTests.csproj", "{27F19DE0-4525-4121-AAF7-8ED164098B0D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DelegateRetryR.LogAdapter.Serilog", "DelegateRetryR.LogAdapter.Serilog\DelegateRetryR.LogAdapter.Serilog.csproj", "{445BBD0D-2AF7-4ACA-8AFA-77BA843F2494}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{27F19DE0-4525-4121-AAF7-8ED164098B0D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{27F19DE0-4525-4121-AAF7-8ED164098B0D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{27F19DE0-4525-4121-AAF7-8ED164098B0D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{445BBD0D-2AF7-4ACA-8AFA-77BA843F2494}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{445BBD0D-2AF7-4ACA-8AFA-77BA843F2494}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{445BBD0D-2AF7-4ACA-8AFA-77BA843F2494}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{445BBD0D-2AF7-4ACA-8AFA-77BA843F2494}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

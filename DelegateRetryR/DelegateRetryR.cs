@@ -1,5 +1,5 @@
-﻿using DelegateRetry.WorkRunner;
-using Microsoft.Extensions.Logging;
+﻿using DelegateRetry.Logging;
+using DelegateRetry.WorkRunner;
 using System;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -9,40 +9,25 @@ namespace DelegateRetry
     public class DelegateRetryR : IDelegateRetryR
     {
         private IDelegateRetryRConfiguration? _configuration;
-        private ILogger? _logger;
+        private static IDelegateRetryRLogger? _logger;
 
         public DelegateRetryR()
         {
-            SetProperties(null, null);
+            _configuration = null; 
         }
         public DelegateRetryR(IDelegateRetryRConfiguration config)
         {
-            SetProperties(config, null);
+            _configuration = config;
         }
-        public DelegateRetryR(ILogger logger)
-        {
-            SetProperties(null, logger);
-        }
-        public DelegateRetryR(IDelegateRetryRConfiguration config, ILogger logger)
-        {
-            SetProperties(config, logger);
-        }
-        public static IDelegateRetryR Configure(Action<DelegateRetryRConfiguration> configAction)
+        public static IDelegateRetryR Configure(Action<IDelegateRetryRConfiguration> configAction)
         {
             var configuration = new DelegateRetryRConfiguration();
             configAction?.Invoke(configuration);
             return new DelegateRetryR(configuration);
         }
-        public static IDelegateRetryR ConfigureWithLogger(Action<DelegateRetryRConfiguration> configAction, ILogger logger)
+        public static void UseLogger<T>() where T : IDelegateRetryRLogger
         {
-            var configuration = new DelegateRetryRConfiguration();
-            configAction?.Invoke(configuration);
-            return new DelegateRetryR(configuration, logger);
-        }
-        private void SetProperties(IDelegateRetryRConfiguration? config, ILogger? logger)
-        {
-            _configuration = config;
-            _logger = logger;
+            _logger = (IDelegateRetryRLogger)Activator.CreateInstance(typeof(T));
         }
         public async Task RetryWorkAsync<TException>(Delegate action, object[]? parameters = null, Predicate<int>? retryConditional = null, Func<int, int>? retryDelay = null)
             where TException : Exception
@@ -74,30 +59,37 @@ namespace DelegateRetry
         }
         private async Task PerformWorkWithRetry<TException>(WorkRunnerBase workRunner, Predicate<int>? retryConditional = null, Func<int, int>? retryDelay = null) where TException : Exception
         {
-            Guid jobId = Guid.NewGuid();
-            retryConditional = ResolveRetryConditional(retryConditional);
-            retryDelay = ResolveRetryDelay(retryDelay);
-            int attempt = 1;
+            var jobState = DelegateRetryRState.InitNewState(ResolveRetryConditional(retryConditional), ResolveRetryDelay(retryDelay));
             do
             {
-                _logger?.LogDebug("[{JobId}] - Performing delegate work - attempt {Attempt}", jobId, attempt);
-                try
-                {
-                    await workRunner.ExecuteWithDelay(retryDelay(attempt));
-                    _logger?.LogInformation("[{JobId}] - Delegate work completed successfully in {Attempt} attempt(s)", jobId, attempt);
-                    return;
-                }
-                catch (Exception e)
-                {
-                    e = ResolveWrappedDynamicInvokeExceptionIfApplicable(e);
-                    ThrowIfUnexpectedError<TException>(e);
-                    if (!retryConditional(attempt))
-                    {
-                        _logger?.LogInformation("[{JobId}] - Delegate work did not complete successfully in {Attempt} attempts. Bubbling up the exception.", jobId, attempt - 1);
-                        throw e;
-                    }
-                }
-            } while (retryConditional(attempt++));
+                jobState = await TryRunningWork<TException>(workRunner, jobState);
+            } while (jobState.ShouldRetry());
+
+            if (jobState.HadSuccessfulRun)
+            {
+                _logger?.Information("[{JobId}] - Delegate work completed successfully in {Attempt} attempt(s)", jobState.JobId, jobState.Attempt);
+            }
+            else
+            {
+                PropagateException(jobState);
+            }
+        }
+
+        private async Task<DelegateRetryRState> TryRunningWork<TException>(WorkRunnerBase workRunner, DelegateRetryRState jobState) where TException : Exception
+        {
+            _logger?.Debug("[{JobId}] - Performing delegate work - attempt {Attempt}", jobState.JobId, jobState.Attempt);
+            try
+            {
+                _logger?.Debug("[{JobId}] - Executing work with a delay of {DelayInMs}ms", jobState.JobId, jobState.GetRetryDelay());
+                await workRunner.ExecuteWithDelay(jobState.GetRetryDelay());
+                jobState.HadSuccessfulRun = true;
+            }
+            catch (Exception e)
+            {
+                jobState.LastThrownException = ResolveWrappedDynamicInvokeExceptionIfApplicable(e);
+                ThrowIfUnexpectedError<TException>(jobState);
+            }
+            return jobState;
         }
 
         private Exception ResolveWrappedDynamicInvokeExceptionIfApplicable(Exception e) 
@@ -109,17 +101,23 @@ namespace DelegateRetry
             return e;
         }
 
-        private void ThrowIfUnexpectedError<TException>(Exception e) where TException : Exception
+        private void ThrowIfUnexpectedError<TException>(DelegateRetryRState jobState) where TException : Exception
         {
-            if (e.GetType() == typeof(TException) || e.GetType().IsSubclassOf(typeof(TException)))
+            var thrownException = jobState.LastThrownException;
+            if (thrownException.GetType() == typeof(TException) || thrownException.GetType().IsSubclassOf(typeof(TException)))
             {
-                _logger?.LogDebug("Thrown exception matches retry on exception type, will attempt a retry if conditional passes");
+                _logger?.Debug("[{JobId}] - Thrown exception matches retry on exception type, will attempt a retry if conditional passes", jobState.JobId);
             }
             else
             {
-                _logger?.LogDebug("Thrown exception does not match retry on exception type");
-                throw e;
+                _logger?.Debug("[{JobId}] - Thrown exception does not match retry on exception type", jobState.JobId);
+                throw thrownException;
             }
+        }
+        private void PropagateException(DelegateRetryRState jobState)
+        {
+            _logger?.Information("[{JobId}] - Delegate work did not complete successfully in {Attempt} attempt(s). Bubbling up the exception.", jobState.JobId, jobState.Attempt - 1);
+            throw jobState.LastThrownException; 
         }
 
         private Predicate<int> ResolveRetryConditional(Predicate<int>? retryConditionalFromMethodInvocation)
@@ -140,7 +138,7 @@ namespace DelegateRetry
 
         private Predicate<int> GetDefaultRetryConditional()
         {
-            return (attempt) => attempt < 3;
+            return (attempt) => attempt <= 3;
         }
 
         private Func<int, int> ResolveRetryDelay(Func<int, int>? retryDelay)
